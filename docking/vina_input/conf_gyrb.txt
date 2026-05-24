@@ -1,0 +1,17 @@
+# Configuración de AutoDock Vina para GyrB_3TTZ
+# Generado automáticamente por Andrés Pérez Palacios
+
+receptor       = data/receptors/GyrB_3TTZ_clean.pdbqt
+ligand         = data/ligands/cambiar_por_ligando.pdbqt
+
+center_x       = 8.203
+center_y       = -8.019
+center_z       = 15.475
+
+size_x         = 22.0
+size_y         = 22.0
+size_z         = 22.0
+
+exhaustiveness = 32
+num_modes      = 9
+energy_range   = 3
