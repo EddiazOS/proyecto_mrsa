@@ -1,0 +1,16 @@
+name: docking_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - biopython
+  - numpy
+  - pandas
+  - rdkit
+  - openbabel
+  - vina
+  - prody
+  - pip
+  - pip:
+      - meeko==0.7.1

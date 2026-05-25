@@ -1,0 +1,19 @@
+{
+    "name": "MRSA Docking & Bioinformatics",
+    "image": "mcr.microsoft.com/devcontainers/miniconda:3",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "python.defaultInterpreterPath": "/opt/conda/envs/docking_env/bin/python",
+                "python.terminal.activateEnvInTriggeredTerminal": true
+            },
+            "extensions": [
+                "ms-python.python",
+                "ms-toolsai.jupyter",
+                "ms-python.vscode-pylance",
+                "christian-kohler.path-intellisense"
+            ]
+        }
+    },
+    "postCreateCommand": "conda env create -f environment.yml && echo 'conda activate docking_env' >> ~/.bashrc"
+}
