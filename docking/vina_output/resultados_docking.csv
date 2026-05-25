@@ -1,4 +1,15 @@
 Diana,Ligando,Control,Energia_kcal_mol,Tiempo_s
+PBP2a,Afzelin_3D,No,-8.458,0.0
+PBP2a,4Hydroxybenzoic_acid_3D,No,-5.421,0.0
+PBP2a,Avocadenofuran_3D,No,-5.012,0.0
+PBP2a,Avocadyne_acetate_3D,No,-6.101,0.0
+PBP2a,Avocadene_acetate_3D,No,-5.769,0.0
+PBP2a,Ceftaroline_3D,Sí,-8.245,0.0
+GyrB,Afzelin_3D,No,-7.612,0.0
+GyrB,4Hydroxybenzoic_acid_3D,No,-5.474,0.0
+GyrB,Avocadenofuran_3D,No,-5.532,0.0
+GyrB,Avocadyne_acetate_3D,No,-5.479,0.0
+GyrB,Avocadene_acetate_3D,No,-5.531,0.0
 GyrB,07N_GyrB_3D,Sí,-8.063,100.7
 MurG,Afzelin_3D,No,-8.141,207.6
 MurG,4Hydroxybenzoic_acid_3D,No,-5.321,19.9

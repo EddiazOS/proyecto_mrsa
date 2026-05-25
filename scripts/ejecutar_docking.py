@@ -134,8 +134,30 @@ def main():
             print(f"  [{run_idx}/{total_runs}] Docking: {lig_name} (Control: {is_control})...")
 
             if os.path.exists(log_txt):
+                afinidad = parsear_energia_vina(log_txt)
+                # Intentar recuperar el tiempo de ejecución previo desde el CSV si existe
+                tiempo_previo = 0.0
+                csv_path = os.path.join(output_dir, "resultados_docking.csv")
+                if os.path.exists(csv_path):
+                    try:
+                        with open(csv_path, "r") as csv_f:
+                            for line in csv_f:
+                                parts = line.strip().split(",")
+                                if len(parts) >= 5 and parts[0] == diana_name and parts[1] == lig_name:
+                                    tiempo_previo = float(parts[4])
+                                    break
+                    except Exception:
+                        pass
+                
+                print(f"    -> [YA PROCESADO] Recuperado de log: {afinidad} kcal/mol | Tiempo: {tiempo_previo}s")
+                resultados.append({
+                    "Diana": diana_name,
+                    "Ligando": lig_name,
+                    "Control": is_control,
+                    "Energia_kcal_mol": afinidad,
+                    "Tiempo_s": tiempo_previo
+                })
                 run_idx += 1
-                print(f"{lig_name} ya ha sido procesado y sus resultados están en {log_txt}|{out_pdbqt}")
                 continue
             
             # Comando de Vina (sin parámetro --log descontinuado)
