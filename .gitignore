@@ -14,5 +14,8 @@ venv/
 env/
 
 # Resultados de docking locales temporales
-docking/vina_output/*
-!docking/vina_output/.gitkeep
+# docking/vina_output/*
+# !docking/vina_output/.gitkeep
+
+# Solo ignorar logs temporales, no los resultados finales
+docking/vina_output/*.log
