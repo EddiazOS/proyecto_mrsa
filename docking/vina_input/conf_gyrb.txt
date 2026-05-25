@@ -1,16 +1,18 @@
 # Configuración de AutoDock Vina para GyrB_3TTZ
 # Generado automáticamente por Andrés Pérez Palacios
+# Centro: centroide geométrico del ligando co-cristalizado (07N)
+# Tamaño de caja: 37.4 Å (calculado dinámicamente, margen 10 Å)
 
 receptor       = data/receptors/GyrB_3TTZ_clean.pdbqt
 ligand         = data/ligands/cambiar_por_ligando.pdbqt
 
-center_x       = 8.203
-center_y       = -8.019
-center_z       = 15.475
+center_x       = 0.318
+center_y       = 2.949
+center_z       = 24.168
 
-size_x         = 22.0
-size_y         = 22.0
-size_z         = 22.0
+size_x         = 37.4
+size_y         = 37.4
+size_z         = 37.4
 
 exhaustiveness = 32
 num_modes      = 9

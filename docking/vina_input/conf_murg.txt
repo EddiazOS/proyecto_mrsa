@@ -1,0 +1,22 @@
+# Configuración de AutoDock Vina para MurG (AlphaFold AF-Q6GGZ0-F1)
+# Generado automáticamente por Andrés Pérez Palacios
+# Centro: centroide de CA del sitio activo de MurG_MRSA
+#   (derivado por superposición estructural con PDB 1F0K, E. coli MurG)
+#   RMSD local sitio activo: 3.361 Å (< 3.5 Å, aceptable)
+#   pLDDT promedio sitio activo: 94.02 (todos ≥ 70)
+# Tamaño de caja: 37.4 Å (calculado dinámicamente, margen 10 Å)
+
+receptor       = data/receptors/MurG_AF-Q6GGZ0-F1_clean.pdbqt
+ligand         = data/ligands/cambiar_por_ligando.pdbqt
+
+center_x       = 4.729
+center_y       = 1.061
+center_z       = -3.361
+
+size_x         = 37.4
+size_y         = 37.4
+size_z         = 37.4
+
+exhaustiveness = 32
+num_modes      = 9
+energy_range   = 3

@@ -1,16 +1,18 @@
 # Configuración de AutoDock Vina para PBP2a_3ZG0
 # Generado automáticamente por Andrés Pérez Palacios
+# Centro: centroide geométrico del ligando co-cristalizado (Ceftarolina AI8)
+# Tamaño de caja: 37.4 Å (calculado dinámicamente, margen 10 Å)
 
 receptor       = data/receptors/PBP2a_3ZG0_clean.pdbqt
 ligand         = data/ligands/cambiar_por_ligando.pdbqt
 
-center_x       = -4.043
-center_y       = 37.118
-center_z       = 77.570
+center_x       = 27.902
+center_y       = 29.847
+center_z       = 88.317
 
-size_x         = 22.0
-size_y         = 22.0
-size_z         = 22.0
+size_x         = 37.4
+size_y         = 37.4
+size_z         = 37.4
 
 exhaustiveness = 32
 num_modes      = 9
