@@ -132,21 +132,34 @@ def main():
             is_control = "Sí" if lig_name == info["control"] else "No"
             
             print(f"  [{run_idx}/{total_runs}] Docking: {lig_name} (Control: {is_control})...")
+
+            if os.path.exists(log_txt):
+                run_idx += 1
+                print(f"{lig_name} ya ha sido procesado y sus resultados están en {log_txt}|{out_pdbqt}")
+                continue
             
-            # Comando de Vina
+            # Comando de Vina (sin parámetro --log descontinuado)
             cmd = [
                 "vina",
                 "--config", conf_path,
                 "--ligand", lig_path,
-                "--out", out_pdbqt,
-                "--log", log_txt
+                "--out", out_pdbqt
             ]
-            
+
             t0 = time.time()
             res = subprocess.run(cmd, capture_output=True, text=True)
             elapsed = time.time() - t0
-            
+
+            # Guardamos la salida estándar (stdout) directamente en el archivo log_txt
+            with open(log_txt, "w") as log_file:
+                log_file.write(res.stdout)
+                # Opcional: si hubo errores de consola, también los guardamos al final
+                if res.stderr:
+                    log_file.write("\n=== ERRORES (STDERR) ===\n")
+                    log_file.write(res.stderr)
+
             if res.returncode == 0:
+                # Ahora parseamos el archivo recién escrito. ¡Funcionará idénticamente!
                 afinidad = parsear_energia_vina(log_txt)
                 print(f"    -> Completado en {elapsed:.1f}s | Mejor Afinidad (ΔG): {afinidad} kcal/mol")
                 resultados.append({
@@ -154,16 +167,6 @@ def main():
                     "Ligando": lig_name,
                     "Control": is_control,
                     "Energia_kcal_mol": afinidad,
-                    "Tiempo_s": round(elapsed, 1)
-                })
-            else:
-                print(f"    [ERROR] Falló la corrida de Vina:")
-                print(res.stderr.strip()[:300])
-                resultados.append({
-                    "Diana": diana_name,
-                    "Ligando": lig_name,
-                    "Control": is_control,
-                    "Energia_kcal_mol": None,
                     "Tiempo_s": round(elapsed, 1)
                 })
                 
