@@ -1,5 +1,4 @@
 # Jupyter Notebooks (ignorados por comodidad del flujo local)
-*.ipynb
 .ipynb_checkpoints/
 
 # Python Cache y Ejecución
