@@ -126,8 +126,10 @@ def main():
                 print(f"  [ERROR] No se encontró el ligando PDBQT: {lig_path}")
                 continue
                 
-            out_pdbqt = os.path.join(output_dir, f"{diana_name}_{lig_name}_out.pdbqt")
-            log_txt = os.path.join(output_dir, f"{diana_name}_{lig_name}_log.txt")
+            diana_out_dir = os.path.join(output_dir, diana_name)
+            os.makedirs(diana_out_dir, exist_ok=True)
+            out_pdbqt = os.path.join(diana_out_dir, f"{diana_name}_{lig_name}_out.pdbqt")
+            log_txt = os.path.join(diana_out_dir, f"{diana_name}_{lig_name}_log.txt")
             
             is_control = "Sí" if lig_name == info["control"] else "No"
             

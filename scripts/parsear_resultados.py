@@ -96,23 +96,26 @@ def main():
     if tiempos_previos:
         print(f"[INFO] Se cargaron {len(tiempos_previos)} registros de tiempos desde el CSV previo.")
     
-    # 2. Escanear archivos *_log.txt
-    archivos = os.listdir(output_dir)
-    log_files = [f for f in archivos if f.endswith("_log.txt")]
+    # 2. Escanear archivos *_log.txt en subcarpetas
+    log_files_paths = []
+    for root, dirs, files in os.walk(output_dir):
+        for f in files:
+            if f.endswith("_log.txt"):
+                log_files_paths.append(os.path.join(root, f))
     
-    if not log_files:
+    if not log_files_paths:
         print("[WARNING] No se encontraron archivos de log (*_log.txt) en la carpeta de salida.")
         sys.exit(0)
         
-    print(f"[INFO] Se encontraron {len(log_files)} archivos de log para procesar.")
+    print(f"[INFO] Se encontraron {len(log_files_paths)} archivos de log para procesar.")
     
     resultados = []
     
     # Definimos los nombres de las dianas conocidas
     dianas_keys = list(DIANAS.keys())
     
-    for filename in sorted(log_files):
-        log_path = os.path.join(output_dir, filename)
+    for log_path in sorted(log_files_paths):
+        filename = os.path.basename(log_path)
         
         # Determinar Diana y Ligando a partir del nombre del archivo
         diana_detectada = None

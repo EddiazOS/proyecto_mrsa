@@ -1,6 +1,6 @@
 # Reporte del Screening Virtual de Docking Molecular
 
-**Fecha y Hora del Reporte:** 2026-05-25 09:41:54
+**Fecha y Hora del Reporte:** 2026-05-30 16:38:26
 **Algoritmo:** AutoDock Vina 1.2.0
 **Exhaustiveness:** 32 (Exhaustividad alta para publicación)
 
