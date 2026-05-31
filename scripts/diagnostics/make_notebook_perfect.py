@@ -85,7 +85,7 @@ def main():
                     "print(f\"[*] Ejecutando ACPYPE para: {ligand_name} (Carga: {charge})...\")\n",
                     "\n",
                     "# Comando acpype automatizado\n",
-                    "cmd = f\"acpype -i {ligand_file} -c bcc -n {charge} -m amber -f\"\n",
+                    "cmd = f\"acpype -i {ligand_file} -c bcc -n {charge} -f\"\n",
                     "subprocess.run(cmd, shell=True)\n",
                     "print(\"[*] Topología del ligando generada exitosamente.\")\n"
                 ]

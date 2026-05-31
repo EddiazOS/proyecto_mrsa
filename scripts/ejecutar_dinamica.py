@@ -335,7 +335,7 @@ def main():
     # PASO A: Parametrización del Ligando (ACPYPE)
     # =====================================================================
     print("\n--- PASO A: Parametrizando el ligando con ACPYPE (GAFF2/AM1-BCC) ---")
-    acpype_cmd = f"acpype -i ligand.sdf -c bcc -n {sys_info['charge']} -m amber -f"
+    acpype_cmd = f"acpype -i ligand.sdf -c bcc -n {sys_info['charge']} -f"
     res_acpype = subprocess.run(acpype_cmd, shell=True, capture_output=True, text=True)
     
     ligand_folder = f"ligand.acpype"
