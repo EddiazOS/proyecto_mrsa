@@ -124,7 +124,7 @@ def main():
                     "ligand_itp_input = f\"{ligand_name}.acpype/{ligand_name}_GMX.itp\"\n",
                     "\n",
                     "fusionar_gro(protein_gro_input, ligand_gro_input, \"complex.gro\")\n",
-                    "actualizar_topol(\"topol.top\", ligand_itp_input, resname)\n",
+                    "actualizar_topol(\"topol.top\", ligand_itp_input, ligand_name)\n",
                     "print(\"[*] Complejo complex.gro e itp acoplados con éxito.\")\n"
                 ]
             }

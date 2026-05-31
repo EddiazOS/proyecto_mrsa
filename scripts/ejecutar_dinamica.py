@@ -325,9 +325,10 @@ def main():
     os.makedirs(run_dir, exist_ok=True)
     print(f"\n[*] Carpeta de trabajo creada: {run_dir}")
     
+    resname = sys_info["resname"]
     # Copiar ligandos y proteínas al directorio
     shutil.copy(sys_info["protein"], os.path.join(run_dir, "receptor.pdb"))
-    shutil.copy(sys_info["ligand"], os.path.join(run_dir, "ligand.sdf"))
+    shutil.copy(sys_info["ligand"], os.path.join(run_dir, f"{resname}.sdf"))
     
     # Movernos al directorio de trabajo
     os.chdir(run_dir)
@@ -347,12 +348,12 @@ def main():
     # PASO A: Parametrización del Ligando (ACPYPE)
     # =====================================================================
     print("\n--- PASO A: Parametrizando el ligando con ACPYPE (GAFF2/AM1-BCC) ---")
-    acpype_cmd = f"acpype -i ligand.sdf -c bcc -n {sys_info['charge']} -f"
+    acpype_cmd = f"acpype -i {resname}.sdf -c bcc -n {sys_info['charge']} -f"
     res_acpype = subprocess.run(acpype_cmd, shell=True, capture_output=True, text=True)
     
-    ligand_folder = f"ligand.acpype"
-    ligand_gro = f"{ligand_folder}/ligand_GMX.gro"
-    ligand_itp = f"{ligand_folder}/ligand_GMX.itp"
+    ligand_folder = f"{resname}.acpype"
+    ligand_gro = f"{ligand_folder}/{resname}_GMX.gro"
+    ligand_itp = f"{ligand_folder}/{resname}_GMX.itp"
     
     if not os.path.exists(ligand_gro):
         print("[ERROR] Fallo en la parametrización de ACPYPE:")
