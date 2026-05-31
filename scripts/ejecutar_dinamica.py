@@ -226,6 +226,18 @@ pbc         = xyz
 DispCorr    = EnerPres
 """
 
+def run_cmd(cmd_str, error_msg, silence=True):
+    res = subprocess.run(cmd_str, shell=True, capture_output=silence, text=True)
+    if res.returncode != 0:
+        print(f"\n[ERROR] {error_msg}")
+        if silence:
+            print("=== STDOUT ===")
+            print(res.stdout)
+            print("=== STDERR ===")
+            print(res.stderr)
+        sys.exit(1)
+    return res
+
 # =====================================================================
 # Orquestación de Ejecución Principal
 # =====================================================================
@@ -374,37 +386,37 @@ def main():
     # PASO D: Solvatación y Neutralización
     # =====================================================================
     print("\n--- PASO D: Solvatando el sistema en caja dodecaédrica (1.2 nm buffer) ---")
-    subprocess.run("gmx editconf -f complex.gro -o complex_box.gro -c -d 1.2 -bt dodecahedron", shell=True, capture_output=True)
-    subprocess.run("gmx solvate -cs spc216.gro -cp complex_box.gro -o complex_solv.gro -p topol.top", shell=True, capture_output=True)
+    run_cmd("gmx editconf -f complex.gro -o complex_box.gro -c -d 1.2 -bt dodecahedron", "Fallo en gmx editconf")
+    run_cmd("gmx solvate -cs spc216.gro -cp complex_box.gro -o complex_solv.gro -p topol.top", "Fallo en gmx solvate")
     print("[*] Sistema solvatado.")
     
     # Agregar iones para neutralizar y llegar a 0.15 M NaCl
     print("\n--- PASO E: Neutralizando el sistema con Na+/Cl- a 0.15 M ---")
     # 1. Compilar mdp temporal para genion
-    subprocess.run("gmx grompp -f minim.mdp -c complex_solv.gro -p topol.top -o ions.tpr -maxwarn 1", shell=True, capture_output=True)
+    run_cmd("gmx grompp -f minim.mdp -c complex_solv.gro -p topol.top -o ions.tpr -maxwarn 1", "Fallo al compilar mdp para genion")
     
     # 2. Agregar iones (seleccionando 'SOL' como grupo solvente, típicamente grupo 13 o 15)
     # Mandamos 'SOL' a genion
     genion_cmd = "echo 'SOL' | gmx genion -s ions.tpr -o complex_solv_ions.gro -p topol.top -pname NA -nname CL -neutral -conc 0.15"
-    subprocess.run(genion_cmd, shell=True, capture_output=True)
+    run_cmd(genion_cmd, "Fallo al agregar iones con gmx genion")
     print("[*] Sistema neutralizado.")
     
     # =====================================================================
     # PASO F: Simulaciones (Minimización y Equilibración)
     # =====================================================================
     print("\n--- PASO F: Ejecutando Minimización de Energía (EM) ---")
-    subprocess.run("gmx grompp -f minim.mdp -c complex_solv_ions.gro -p topol.top -o em.tpr", shell=True, capture_output=True)
-    subprocess.run("gmx mdrun -v -deffnm em", shell=True, capture_output=True)
+    run_cmd("gmx grompp -f minim.mdp -c complex_solv_ions.gro -p topol.top -o em.tpr", "Fallo al compilar mdp para minimización")
+    run_cmd("gmx mdrun -v -deffnm em", "Fallo al correr minimización de energía")
     print("[*] Minimización energética completada.")
     
     print("\n--- PASO G: Ejecutando Equilibración NVT (100 ps, 300 K) ---")
-    subprocess.run("gmx grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr", shell=True, capture_output=True)
-    subprocess.run("gmx mdrun -deffnm nvt", shell=True, capture_output=True)
+    run_cmd("gmx grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr", "Fallo al compilar mdp para NVT")
+    run_cmd("gmx mdrun -deffnm nvt", "Fallo al correr equilibración NVT")
     print("[*] Equilibración NVT completada.")
     
     print("\n--- PASO H: Ejecutando Equilibración NPT (100 ps, 1 bar) ---")
-    subprocess.run("gmx grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr", shell=True, capture_output=True)
-    subprocess.run("gmx mdrun -deffnm npt", shell=True, capture_output=True)
+    run_cmd("gmx grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr", "Fallo al compilar mdp para NPT")
+    run_cmd("gmx mdrun -deffnm npt", "Fallo al correr equilibración NPT")
     print("[*] Equilibración NPT completada.")
     
     # =====================================================================
@@ -412,7 +424,7 @@ def main():
     # =====================================================================
     print(f"\n--- PASO I: Iniciando simulación de producción ({tiempo_ns} ns) ---")
     print("[INFO] Esta corrida puede tomar varias horas. GROMACS usará la GPU CUDA automáticamente.")
-    subprocess.run("gmx grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md_production.tpr", shell=True, capture_output=True)
+    run_cmd("gmx grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md_production.tpr", "Fallo al compilar mdp para producción")
     
     # Para la ejecución en Colab en segundo plano o interactiva, se puede correr directamente mdrun
     # Aquí iniciamos el comando mdrun. El usuario verá el archivo de log progresar.
