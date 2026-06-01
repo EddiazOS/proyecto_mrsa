@@ -403,17 +403,20 @@ def main():
     # =====================================================================
     print("\n--- PASO F: Ejecutando Minimización de Energía (EM) ---")
     run_cmd("gmx grompp -f minim.mdp -c complex_solv_ions.gro -p topol.top -o em.tpr", "Fallo al compilar mdp para minimización")
-    run_cmd("gmx mdrun -v -deffnm em", "Fallo al correr minimización de energía")
+    print("[INFO] Corriendo mdrun de minimización (salida en tiempo real)...")
+    run_cmd("gmx mdrun -v -deffnm em", "Fallo al correr minimización de energía", silence=False)
     print("[*] Minimización energética completada.")
     
     print("\n--- PASO G: Ejecutando Equilibración NVT (100 ps, 300 K) ---")
     run_cmd("gmx grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr", "Fallo al compilar mdp para NVT")
-    run_cmd("gmx mdrun -deffnm nvt", "Fallo al correr equilibración NVT")
+    print("[INFO] Corriendo mdrun NVT (salida en tiempo real)...")
+    run_cmd("gmx mdrun -deffnm nvt", "Fallo al correr equilibración NVT", silence=False)
     print("[*] Equilibración NVT completada.")
     
     print("\n--- PASO H: Ejecutando Equilibración NPT (100 ps, 1 bar) ---")
     run_cmd("gmx grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr", "Fallo al compilar mdp para NPT")
-    run_cmd("gmx mdrun -deffnm npt", "Fallo al correr equilibración NPT")
+    print("[INFO] Corriendo mdrun NPT (salida en tiempo real)...")
+    run_cmd("gmx mdrun -deffnm npt", "Fallo al correr equilibración NPT", silence=False)
     print("[*] Equilibración NPT completada.")
     
     # =====================================================================
