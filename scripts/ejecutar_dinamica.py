@@ -182,6 +182,7 @@ pcoupltype  = isotropic
 tau_p       = 2.0
 compressibility = 4.5e-5
 ref_p       = 1.0
+refcoord-scaling = com
 pbc         = xyz
 DispCorr    = EnerPres
 """
