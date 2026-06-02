@@ -1,0 +1,15 @@
+name: md_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - gromacs>=2024.0
+  - acpype
+  - openbabel
+  - numpy
+  - pandas
+  - matplotlib
+  - seaborn
+  - ipykernel
+  - pip
