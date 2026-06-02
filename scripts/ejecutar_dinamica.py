@@ -19,7 +19,7 @@ Ejemplos:
   python scripts/ejecutar_dinamica.py PBP2a_Afzelin 100
 
 Notas GPU:
-  Requiere GROMACS compilado con CUDA (imagen nvcr.io/hpc/gromacs:2024.1).
+  Requiere GROMACS compilado con CUDA (imagen nvcr.io/hpc/gromacs:2023.3).
   Los flags GPU activan offloading de: non-bonded, PME, bonded, integrador.
 """
 
@@ -272,31 +272,33 @@ def main():
 
     nsteps_prod = int((tiempo_ns * 1000 * 1000) / 2)  # dt = 2 fs = 0.002 ps
 
+    # Cada entrada apunta al PDB del complejo en data/complexes/
+    # y al SDF del ligando solo en data/ligands/ (para parametrización con ACPYPE)
     sistemas = {
         "MurG_Afzelin": {
-            "protein": "data/receptors/MurG_AF-Q6GGZ0-F1.pdb",
-            "ligand": "data/ligands/Afzelin_3D.sdf",
+            "complex_pdb": "data/complexes/complex_MurG_Afzelin.pdb",
+            "ligand_sdf":  "data/ligands/Afzelin_3D.sdf",
             "ligand_name": "Afzelin_3D",
             "charge": 0,
             "resname": "AFZ"
         },
         "MurG_Quercetin": {
-            "protein": "data/receptors/MurG_AF-Q6GGZ0-F1.pdb",
-            "ligand": "data/ligands/Quercetin_3D.sdf",
+            "complex_pdb": "data/complexes/complex_MurG_Quercetin.pdb",
+            "ligand_sdf":  "data/ligands/Quercetin_3D.sdf",
             "ligand_name": "Quercetin_3D",
             "charge": 0,
             "resname": "QUE"
         },
         "PBP2a_Afzelin": {
-            "protein": "data/receptors/PBP2a_3ZG0_clean.pdb",
-            "ligand": "data/ligands/Afzelin_3D.sdf",
+            "complex_pdb": "data/complexes/complex_PBP2a_Afzelin.pdb",
+            "ligand_sdf":  "data/ligands/Afzelin_3D.sdf",
             "ligand_name": "Afzelin_3D",
             "charge": 0,
             "resname": "AFZ"
         },
         "PBP2a_Ceftaroline": {
-            "protein": "data/receptors/PBP2a_3ZG0_clean.pdb",
-            "ligand": "data/ligands/Ceftaroline_3D.sdf",
+            "complex_pdb": "data/complexes/complex_PBP2a_Ceftaroline.pdb",
+            "ligand_sdf":  "data/ligands/Ceftaroline_3D.sdf",
             "ligand_name": "Ceftaroline_3D",
             "charge": 0,
             "resname": "CEF"
@@ -312,17 +314,25 @@ def main():
 
     if not shutil.which("gmx"):
         print("\n[ERROR] GROMACS ('gmx') no se encuentra en el PATH actual.")
-        print("Asegúrate de usar la imagen Docker nvcr.io/hpc/gromacs:2024.1 en RunPod.")
+        print("Asegúrate de usar la imagen Docker nvcr.io/hpc/gromacs:2023.3 en RunPod.")
         sys.exit(1)
 
     if not shutil.which("acpype"):
         print("\n[ERROR] ACPYPE ('acpype') no se encuentra en el PATH actual.")
         sys.exit(1)
 
+    # Verificar que los archivos fuente existen antes de empezar
+    for key, path in [("complex_pdb", sys_info["complex_pdb"]), ("ligand_sdf", sys_info["ligand_sdf"])]:
+        if not os.path.exists(path):
+            print(f"\n[ERROR] Archivo no encontrado: {path}")
+            sys.exit(1)
+
     print("\n" + "=" * 65)
     print(f"  INICIANDO PIPELINE DE DINÁMICA MOLECULAR (GPU-ENABLED)")
     print(f"  Sistema  : {complejo}")
     print(f"  Tiempo   : {tiempo_ns} ns ({nsteps_prod} pasos)")
+    print(f"  Complejo : {sys_info['complex_pdb']}")
+    print(f"  Ligando  : {sys_info['ligand_sdf']}")
     print(f"  GPU flags: {GPU_FLAGS_FULL}")
     print("=" * 65)
 
@@ -331,8 +341,10 @@ def main():
     print(f"\n[*] Carpeta de trabajo creada: {run_dir}")
 
     resname = sys_info["resname"]
-    shutil.copy(sys_info["protein"], os.path.join(run_dir, "receptor.pdb"))
-    shutil.copy(sys_info["ligand"], os.path.join(run_dir, f"{resname}.sdf"))
+
+    # Copiar el PDB del complejo completo y el SDF del ligando al directorio de trabajo
+    shutil.copy(sys_info["complex_pdb"], os.path.join(run_dir, "complex_input.pdb"))
+    shutil.copy(sys_info["ligand_sdf"],  os.path.join(run_dir, f"{resname}.sdf"))
     os.chdir(run_dir)
 
     with open("minim.mdp", "w") as f:
@@ -363,10 +375,12 @@ def main():
     print("[*] Ligando parametrizado exitosamente.")
 
     # =====================================================================
-    # PASO B: Topología de la Proteína (pdb2gmx)
+    # PASO B: Topología de la Proteína desde el PDB del complejo (pdb2gmx)
+    # NOTA: pdb2gmx procesa solo los residuos estándar (proteína).
+    #       El ligando (HETATM) se ignora y se añade en el PASO C.
     # =====================================================================
-    print("\n--- PASO B: Generando topología de la proteína (AMBER99SB-ILDN) ---")
-    pdb2gmx_cmd = "gmx pdb2gmx -f receptor.pdb -o protein_processed.gro -water tip3p -ignh -p topol.top <<EOF\n6\nEOF"
+    print("\n--- PASO B: Generando topología de la proteína desde el complejo (AMBER99SB-ILDN) ---")
+    pdb2gmx_cmd = "gmx pdb2gmx -f complex_input.pdb -o protein_processed.gro -water tip3p -ignh -p topol.top <<EOF\n6\nEOF"
     res_pdb = subprocess.run(pdb2gmx_cmd, shell=True, capture_output=True, text=True)
 
     if not os.path.exists("protein_processed.gro"):
@@ -376,7 +390,7 @@ def main():
     print("[*] Topología y coordenadas de la proteína listas.")
 
     # =====================================================================
-    # PASO C: Fusión del Complejo
+    # PASO C: Fusión del Complejo (proteína procesada + ligando parametrizado)
     # =====================================================================
     print("\n--- PASO C: Fusionando coordenadas y topología del complejo ---")
     fusionar_gro("protein_processed.gro", ligand_gro, "complex.gro")
