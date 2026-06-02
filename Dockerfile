@@ -1,5 +1,5 @@
-# Base: GROMACS 2024.1 compilado con soporte CUDA completo (NVIDIA NGC)
-FROM nvcr.io/hpc/gromacs:2024.1
+# Base: GROMACS 2023.3 compilado con soporte CUDA completo (NVIDIA NGC)
+FROM nvcr.io/hpc/gromacs:2023.3
 
 # Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y wget git curl && \
@@ -17,6 +17,7 @@ RUN conda install -y -c conda-forge \
     python=3.10 \
     acpype \
     openbabel \
+    ambertools \
     numpy \
     pandas \
     matplotlib \
