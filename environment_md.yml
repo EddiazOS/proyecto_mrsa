@@ -4,7 +4,7 @@ channels:
   - defaults
 dependencies:
   - python=3.10
-  # gromacs se omite aqui: usar imagen Docker nvcr.io/hpc/gromacs:2024.1
+  # gromacs se omite aqui: usar imagen Docker gromacs/gromacs:2023.2
   # que incluye GROMACS compilado con soporte CUDA/GPU completo
   - acpype
   - openbabel

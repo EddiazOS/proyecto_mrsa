@@ -31,7 +31,7 @@ import subprocess
 # =====================================================================
 # Flags GPU para gmx mdrun
 # =====================================================================
-GPU_FLAGS_FULL  = "-ntmpi 1 -ntomp 8 -nb gpu -pme gpu -bonded gpu -update gpu -gpu_id 0"
+GPU_FLAGS_FULL  = "-ntmpi 1 -ntomp 8 -nb gpu -pme gpu -bonded gpu -update cpu -gpu_id 0"
 GPU_FLAGS_MINIM = "-ntmpi 1 -ntomp 8 -nb gpu -gpu_id 0"
 
 
@@ -230,8 +230,8 @@ tau_t       = 0.1     0.1
 ref_t       = 300     300
 pcoupl      = C-rescale
 pcoupltype  = isotropic
-tau_p       = 2.0
-compressibility = 4.5e-5
+tau_p       = 5.0
+compressibility = 4.5e-5  # Se puede bajar a 4.5e-6 en sistemas difíciles/inestables
 ref_p       = 1.0
 refcoord-scaling = com
 pbc         = xyz
@@ -408,7 +408,7 @@ def main():
     # PASO C: Topología de la proteína (pdb2gmx)
     # =====================================================================
     print("\n--- PASO C: Generando topología de la proteína (AMBER99SB-ILDN) ---")
-    pdb2gmx_cmd = "gmx pdb2gmx -f protein_only.pdb -o protein_processed.gro -water tip3p -ignh -p topol.top <<EOF\n6\nEOF"
+    pdb2gmx_cmd = "gmx pdb2gmx -f protein_only.pdb -o protein_processed.gro -water tip3p -ignh -p topol.top -ff amber99sb-ildn"
     res_pdb = subprocess.run(pdb2gmx_cmd, shell=True, capture_output=True, text=True)
     if not os.path.exists("protein_processed.gro"):
         print("[ERROR] Fallo en pdb2gmx:")
@@ -444,7 +444,7 @@ def main():
     # PASO G: Minimización de energía
     # =====================================================================
     print("\n--- PASO G: Minimización de energía (GPU parcial) ---")
-    run_cmd("gmx grompp -f minim.mdp -c complex_solv_ions.gro -p topol.top -o em.tpr", "Fallo en grompp minimización")
+    run_cmd("gmx grompp -f minim.mdp -c complex_solv_ions.gro -p topol.top -o em.tpr -maxwarn 1", "Fallo en grompp minimización")
     run_cmd(f"gmx mdrun -v -deffnm em {GPU_FLAGS_MINIM}", "Fallo en minimización", silence=False)
     print("[*] Minimización completada.")
 
@@ -452,7 +452,7 @@ def main():
     # PASO H: Equilibración NVT
     # =====================================================================
     print("\n--- PASO H: Equilibración NVT (100 ps, 300 K) ---")
-    run_cmd("gmx grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr", "Fallo en grompp NVT")
+    run_cmd("gmx grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr -maxwarn 1", "Fallo en grompp NVT")
     run_cmd(f"gmx mdrun -deffnm nvt {GPU_FLAGS_FULL}", "Fallo en NVT", silence=False)
     print("[*] NVT completado.")
 
@@ -460,7 +460,7 @@ def main():
     # PASO I: Equilibración NPT
     # =====================================================================
     print("\n--- PASO I: Equilibración NPT (100 ps, 1 bar) ---")
-    run_cmd("gmx grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr", "Fallo en grompp NPT")
+    run_cmd("gmx grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr -maxwarn 1", "Fallo en grompp NPT")
     run_cmd(f"gmx mdrun -deffnm npt {GPU_FLAGS_FULL}", "Fallo en NPT", silence=False)
     print("[*] NPT completado.")
 
@@ -468,7 +468,7 @@ def main():
     # PASO J: Producción MD
     # =====================================================================
     print(f"\n--- PASO J: Producción MD ({tiempo_ns} ns) ---")
-    run_cmd("gmx grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md_production.tpr", "Fallo en grompp producción")
+    run_cmd("gmx grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md_production.tpr -maxwarn 1", "Fallo en grompp producción")
     res_md = subprocess.run(f"gmx mdrun -deffnm md_production {GPU_FLAGS_FULL}", shell=True)
 
     if res_md.returncode == 0:

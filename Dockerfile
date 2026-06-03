@@ -1,5 +1,5 @@
-# Base: GROMACS 2023.3 compilado con soporte CUDA completo (NVIDIA NGC)
-FROM nvcr.io/hpc/gromacs:2023.3
+# Base: GROMACS 2023.2 con soporte GPU (CUDA, AVX2_256)
+FROM gromacs/gromacs:2023.2
 
 # Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y wget git curl && \

@@ -1,4 +1,5 @@
 name: docking_env
+# Imagen Docker recomendada para Dinámica Molecular (MD): gromacs/gromacs:2023.2
 channels:
   - conda-forge
   - defaults
