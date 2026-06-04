@@ -1,0 +1,48 @@
+# =====================================================================
+# ARCHIVO DE CONFIGURACIÓN DE DINÁMICA MOLECULAR (GROMACS)
+# =====================================================================
+# Este archivo sirve para especificar qué complejos simular y con qué
+# configuraciones físicas y de hardware de forma secuencial.
+#
+# Reglas de formato:
+#   1. Las líneas que comienzan con '#' son comentarios y son omitidas.
+#   2. Las asignaciones 'parametro = valor' definen la configuración global.
+#   3. La lista de complejos se lee mediante campos separados por '|'.
+#
+# =====================================================================
+# 1. PARÁMETROS GLOBALES DE HARDWARE
+# =====================================================================
+# ntomp: Número de hilos OpenMP de CPU por tarea de mdrun (dejar en 8 para RTX 4080 Super)
+ntomp = 8
+
+# gpu_id: Identificador de la GPU a utilizar (usar 0 por defecto)
+gpu_id = 0
+
+# use_gpu: True para usar aceleración por GPU (CUDA), False para CPU
+use_gpu = True
+
+# update_mode: 'cpu' o 'gpu' (se recomienda 'cpu' por estabilidad termodinámica en NPT)
+update_mode = cpu
+
+# =====================================================================
+# 2. LISTA DE SIMULACIONES A EJECUTAR
+# =====================================================================
+# Formato: Nombre_Complejo | Tiempo_ns | Compresibilidad_NPT | Maxwarn
+#
+# Complejos soportados:
+#   - MurG_Afzelin
+#   - MurG_Quercetin
+#   - PBP2a_Afzelin
+#   - PBP2a_Ceftaroline
+#
+# Compresibilidad NPT recomendada:
+#   - Estándar: 4.5e-5
+#   - Sistemas grandes/difíciles (ej. Ceftaroline): 4.5e-6 (evita oscilaciones críticas)
+# Maxwarn: Número máximo de advertencias permitidas en grompp (por defecto: 1)
+# ---------------------------------------------------------------------
+# Descomenta las líneas que deseas correr:
+
+# MurG_Afzelin      | 20 | 4.5e-5 | 1
+# MurG_Quercetin  | 20 | 4.5e-5 | 1
+# PBP2a_Afzelin   | 20 | 4.5e-5 | 1
+PBP2a_Ceftaroline | 20 | 4.5e-6 | 1

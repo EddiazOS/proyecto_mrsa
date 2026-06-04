@@ -31,18 +31,21 @@ import subprocess
 # =====================================================================
 # Flags GPU para gmx mdrun
 # =====================================================================
-def seleccionar_flags_gromacs():
+def seleccionar_flags_gromacs(ntomp=8, gpu_id=0, use_gpu=True, update_mode="cpu"):
     """
-    Selecciona dinámicamente los flags de gmx mdrun según el hardware local
-    y la compilación de GROMACS.
+    Selecciona dinámicamente los flags de gmx mdrun según el hardware local,
+    la compilación de GROMACS y los parámetros del usuario.
     """
-    flags_full  = "-ntmpi 1 -ntomp 8 -nb gpu -pme gpu -bonded gpu -update cpu -gpu_id 0"
-    flags_minim = "-ntmpi 1 -ntomp 8 -nb gpu -gpu_id 0"
+    if not use_gpu:
+        return f"-ntmpi 1 -ntomp {ntomp}", f"-ntmpi 1 -ntomp {ntomp}"
+
+    flags_full  = f"-ntmpi 1 -ntomp {ntomp} -nb gpu -pme gpu -bonded gpu -update {update_mode} -gpu_id {gpu_id}"
+    flags_minim = f"-ntmpi 1 -ntomp {ntomp} -nb gpu -gpu_id {gpu_id}"
 
     # 1. Verificar si nvidia-smi está disponible
     if not shutil.which("nvidia-smi"):
         print("[INFO] No se detectó GPU NVIDIA (nvidia-smi no disponible). Ejecutando en CPU.")
-        return "", ""
+        return f"-ntmpi 1 -ntomp {ntomp}", f"-ntmpi 1 -ntomp {ntomp}"
 
     # 2. Verificar si GROMACS tiene soporte GPU compilado
     try:
@@ -53,13 +56,11 @@ def seleccionar_flags_gromacs():
                 for line in out.split("\n"):
                     if "gpu support" in line and ("none" in line or "disabled" in line or "no" in line):
                         print("[INFO] GROMACS no tiene soporte GPU activo en su compilación. Ejecutando en CPU.")
-                        return "", ""
+                        return f"-ntmpi 1 -ntomp {ntomp}", f"-ntmpi 1 -ntomp {ntomp}"
     except Exception:
         pass
 
     return flags_full, flags_minim
-
-GPU_FLAGS_FULL, GPU_FLAGS_MINIM = seleccionar_flags_gromacs()
 
 
 # =====================================================================
@@ -320,22 +321,80 @@ def run_cmd(cmd_str, error_msg, silence=True):
 # Pipeline principal
 # =====================================================================
 
-def main():
-    if len(sys.argv) < 2:
-        print("\n[ERROR] Debes especificar el complejo como argumento.")
-        print("Uso: python scripts/ejecutar_dinamica.py <COMPLEJO> [TIEMPO_NS]")
+# =====================================================================
+# Parser de archivo de configuración de texto
+# =====================================================================
+
+def parsear_config_txt(config_path):
+    """
+    Lee un archivo de configuración de texto y devuelve:
+      - global_params: dict con variables de hardware (ntomp, gpu_id, use_gpu, update_mode)
+      - simulation_list: list de dicts con la configuración de cada simulación
+    """
+    global_params = {
+        "ntomp": 8,
+        "gpu_id": 0,
+        "use_gpu": True,
+        "update_mode": "cpu"
+    }
+    simulation_list = []
+
+    if not os.path.exists(config_path):
+        print(f"[ERROR] No se encontró el archivo de configuración: {config_path}")
         sys.exit(1)
 
-    complejo = sys.argv[1]
-    tiempo_ns = 10.0
-    if len(sys.argv) >= 3:
-        try:
-            tiempo_ns = float(sys.argv[2])
-        except ValueError:
-            print("[WARNING] Tiempo inválido, usando 10 ns.")
+    with open(config_path, "r") as f:
+        for line in f:
+            line = line.strip()
+            # Ignorar comentarios y líneas vacías
+            if not line or line.startswith("#"):
+                continue
 
-    nsteps_prod = int((tiempo_ns * 1000 * 1000) / 2)
+            # Detectar parámetros globales (key = value)
+            if "=" in line and "|" not in line:
+                key, val = line.split("=", 1)
+                key = key.strip().lower()
+                val = val.strip()
 
+                if key == "ntomp":
+                    global_params["ntomp"] = int(val)
+                elif key == "gpu_id":
+                    global_params["gpu_id"] = int(val)
+                elif key == "use_gpu":
+                    global_params["use_gpu"] = val.lower() in ["true", "1", "yes"]
+                elif key == "update_mode":
+                    global_params["update_mode"] = val.lower()
+
+            # Detectar lista de complejos (complejo | tiempo_ns | compresibilidad | maxwarn)
+            elif "|" in line:
+                parts = line.split("|")
+                complejo = parts[0].strip()
+                tiempo_ns = float(parts[1].strip())
+                
+                # Opciones por defecto
+                compressibility = 4.5e-5
+                maxwarn = 1
+                
+                if len(parts) >= 3:
+                    compressibility = float(parts[2].strip())
+                if len(parts) >= 4:
+                    maxwarn = int(parts[3].strip())
+
+                simulation_list.append({
+                    "complejo": complejo,
+                    "tiempo_ns": tiempo_ns,
+                    "compressibility": compressibility,
+                    "maxwarn": maxwarn
+                })
+
+    return global_params, simulation_list
+
+
+# =====================================================================
+# Función Orquestadora para un Complejo Individual
+# =====================================================================
+
+def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, maxwarn=1, ntomp=8, gpu_id=0, use_gpu=True, update_mode="cpu"):
     sistemas = {
         "MurG_Afzelin": {
             "complex_pdb": "data/complexes/complex_MurG_Afzelin.pdb",
@@ -366,7 +425,7 @@ def main():
     if complejo not in sistemas:
         print(f"\n[ERROR] Complejo '{complejo}' no soportado.")
         print(f"Válidos: {', '.join(sistemas.keys())}")
-        sys.exit(1)
+        return False
 
     sys_info = sistemas[complejo]
 
@@ -382,13 +441,19 @@ def main():
             print(f"\n[ERROR] Archivo no encontrado: {path}")
             sys.exit(1)
 
+    # Seleccionar flags de GPU dinámicamente según especificaciones detectadas y configuradas
+    gpu_flags_full, gpu_flags_minim = seleccionar_flags_gromacs(
+        ntomp=ntomp, gpu_id=gpu_id, use_gpu=use_gpu, update_mode=update_mode
+    )
+
+    nsteps_prod = int((tiempo_ns * 1000 * 1000) / 2)
+
     print("\n" + "=" * 65)
-    print(f"  INICIANDO PIPELINE DE DINÁMICA MOLECULAR (GPU-ENABLED)")
-    print(f"  Sistema  : {complejo}")
+    print(f"  INICIANDO DINÁMICA MOLECULAR PARA: {complejo}")
     print(f"  Tiempo   : {tiempo_ns} ns ({nsteps_prod} pasos)")
     print(f"  Complejo : {sys_info['complex_pdb']}")
     print(f"  Ligando  : {sys_info['ligand_sdf']}")
-    print(f"  GPU flags: {GPU_FLAGS_FULL}")
+    print(f"  Hardware : GPU={use_gpu} | Hilos CPU={ntomp} | ID GPU={gpu_id} | Update={update_mode}")
     print("=" * 65)
 
     run_dir = f"md_run_{complejo}"
@@ -398,11 +463,14 @@ def main():
     resname = sys_info["resname"]
     shutil.copy(sys_info["complex_pdb"], os.path.join(run_dir, "complex_input.pdb"))
     shutil.copy(sys_info["ligand_sdf"],  os.path.join(run_dir, f"{resname}.sdf"))
+    
+    # Guardar directorio original para regresar después de la simulación
+    orig_dir = os.getcwd()
     os.chdir(run_dir)
 
     for fn, content in [("minim.mdp", MINIM_MDP), ("nvt.mdp", NVT_MDP), ("npt.mdp", NPT_MDP)]:
-        if fn == "npt.mdp" and complejo == "PBP2a_Ceftaroline":
-            content = content.replace("compressibility = 4.5e-5", "compressibility = 4.5e-6")
+        if fn == "npt.mdp":
+            content = content.replace("compressibility = 4.5e-5", f"compressibility = {compressibility}")
         with open(fn, "w") as f:
             f.write(content)
     with open("md.mdp", "w") as f:
@@ -423,12 +491,12 @@ def main():
     if not os.path.exists(ligand_gro):
         print("[ERROR] Fallo en ACPYPE:")
         print(res_acpype.stderr)
-        sys.exit(1)
+        os.chdir(orig_dir)
+        return False
     print("[*] Ligando parametrizado.")
 
     # =====================================================================
     # PASO B: Separar proteína del PDB del complejo
-    # pdb2gmx no reconoce HETATM de ligandos — deben excluirse
     # =====================================================================
     print("\n--- PASO B: Separando proteína y ligando del PDB del complejo ---")
     separar_proteina_ligando("complex_input.pdb", "protein_only.pdb", "ligand_from_complex.pdb", resname)
@@ -442,7 +510,8 @@ def main():
     if not os.path.exists("protein_processed.gro"):
         print("[ERROR] Fallo en pdb2gmx:")
         print(res_pdb.stderr)
-        sys.exit(1)
+        os.chdir(orig_dir)
+        return False
     print("[*] Topología de proteína lista.")
 
     # =====================================================================
@@ -465,7 +534,7 @@ def main():
     # PASO F: Neutralización
     # =====================================================================
     print("\n--- PASO F: Neutralizando con Na+/Cl- a 0.15 M ---")
-    run_cmd("gmx grompp -f minim.mdp -c complex_solv.gro -p topol.top -o ions.tpr -maxwarn 1", "Fallo en grompp para genion")
+    run_cmd(f"gmx grompp -f minim.mdp -c complex_solv.gro -p topol.top -o ions.tpr -maxwarn {maxwarn}", "Fallo en grompp para genion")
     run_cmd("echo 'SOL' | gmx genion -s ions.tpr -o complex_solv_ions.gro -p topol.top -pname NA -nname CL -neutral -conc 0.15", "Fallo en genion")
     print("[*] Sistema neutralizado.")
 
@@ -473,38 +542,121 @@ def main():
     # PASO G: Minimización de energía
     # =====================================================================
     print("\n--- PASO G: Minimización de energía (GPU parcial) ---")
-    run_cmd("gmx grompp -f minim.mdp -c complex_solv_ions.gro -p topol.top -o em.tpr -maxwarn 1", "Fallo en grompp minimización")
-    run_cmd(f"gmx mdrun -v -deffnm em {GPU_FLAGS_MINIM}", "Fallo en minimización", silence=False)
+    run_cmd(f"gmx grompp -f minim.mdp -c complex_solv_ions.gro -p topol.top -o em.tpr -maxwarn {maxwarn}", "Fallo en grompp minimización")
+    run_cmd(f"gmx mdrun -v -deffnm em {gpu_flags_minim}", "Fallo en minimización", silence=False)
     print("[*] Minimización completada.")
 
     # =====================================================================
     # PASO H: Equilibración NVT
     # =====================================================================
     print("\n--- PASO H: Equilibración NVT (100 ps, 300 K) ---")
-    run_cmd("gmx grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr -maxwarn 1", "Fallo en grompp NVT")
-    run_cmd(f"gmx mdrun -deffnm nvt {GPU_FLAGS_FULL}", "Fallo en NVT", silence=False)
+    run_cmd(f"gmx grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr -maxwarn {maxwarn}", "Fallo en grompp NVT")
+    run_cmd(f"gmx mdrun -deffnm nvt {gpu_flags_full}", "Fallo en NVT", silence=False)
     print("[*] NVT completado.")
 
     # =====================================================================
     # PASO I: Equilibración NPT
     # =====================================================================
     print("\n--- PASO I: Equilibración NPT (100 ps, 1 bar) ---")
-    run_cmd("gmx grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr -maxwarn 1", "Fallo en grompp NPT")
-    run_cmd(f"gmx mdrun -deffnm npt {GPU_FLAGS_FULL}", "Fallo en NPT", silence=False)
+    run_cmd(f"gmx grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr -maxwarn {maxwarn}", "Fallo en grompp NPT")
+    run_cmd(f"gmx mdrun -deffnm npt {gpu_flags_full}", "Fallo en NPT", silence=False)
     print("[*] NPT completado.")
 
     # =====================================================================
     # PASO J: Producción MD
     # =====================================================================
     print(f"\n--- PASO J: Producción MD ({tiempo_ns} ns) ---")
-    run_cmd("gmx grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md_production.tpr -maxwarn 1", "Fallo en grompp producción")
-    res_md = subprocess.run(f"gmx mdrun -deffnm md_production {GPU_FLAGS_FULL}", shell=True)
+    run_cmd(f"gmx grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md_production.tpr -maxwarn {maxwarn}", "Fallo en grompp producción")
+    res_md = subprocess.run(f"gmx mdrun -deffnm md_production {gpu_flags_full}", shell=True)
+
+    os.chdir(orig_dir)
 
     if res_md.returncode == 0:
         print(f"\n[ÉXITO] Simulación de {tiempo_ns} ns completada!")
         print(f"Resultados en: md_run_{complejo}/")
+        return True
     else:
         print("\n[WARNING] Producción interrumpida. Revisa md_production.log.")
+        return False
+
+
+# =====================================================================
+# Entrada Principal (Soporta CLI directo o archivo de configuración)
+# =====================================================================
+
+def main():
+    if len(sys.argv) < 2:
+        print("\n[ERROR] Parámetros insuficientes.")
+        print("Uso (Ejecución individual):")
+        print("  python scripts/ejecutar_dinamica.py <COMPLEJO> [TIEMPO_NS]")
+        print("\nUso (Ejecución mediante archivo de configuración):")
+        print("  python scripts/ejecutar_dinamica.py <ARCHIVO_CONFIG.TXT>")
+        sys.exit(1)
+
+    argumento = sys.argv[1]
+
+    # Caso A: Se pasa un archivo de configuración de texto
+    if argumento.endswith(".txt"):
+        print(f"[*] Detectado archivo de configuración: {argumento}")
+        global_params, simulation_list = parsear_config_txt(argumento)
+
+        print("\n=======================================================")
+        print("           PIPELINE MULTI-COMPLEJO INICIADO")
+        print(f"  Hilos CPU (ntomp)  : {global_params['ntomp']}")
+        print(f"  ID de GPU (gpu_id) : {global_params['gpu_id']}")
+        print(f"  Aceleración GPU    : {global_params['use_gpu']}")
+        print(f"  Modo de Update     : {global_params['update_mode']}")
+        print(f"  Complejos en cola  : {len(simulation_list)}")
+        print("=======================================================")
+
+        exitos = 0
+        fallas = 0
+
+        for sim in simulation_list:
+            exito = ejecutar_simulacion_complejo(
+                complejo=sim["complejo"],
+                tiempo_ns=sim["tiempo_ns"],
+                compressibility=sim["compressibility"],
+                maxwarn=sim["maxwarn"],
+                ntomp=global_params["ntomp"],
+                gpu_id=global_params["gpu_id"],
+                use_gpu=global_params["use_gpu"],
+                update_mode=global_params["update_mode"]
+            )
+            if exito:
+                exitos += 1
+            else:
+                fallas += 1
+
+        print("\n=======================================================")
+        print("           PIPELINE MULTI-COMPLEJO FINALIZADO")
+        print(f"  Simulaciones exitosas: {exitos}")
+        print(f"  Simulaciones fallidas: {fallas}")
+        print("=======================================================")
+
+    # Caso B: Se pasa un complejo de forma directa (compatibilidad hacia atrás)
+    else:
+        complejo = argumento
+        tiempo_ns = 10.0
+        if len(sys.argv) >= 3:
+            try:
+                tiempo_ns = float(sys.argv[2])
+            except ValueError:
+                print("[WARNING] Tiempo inválido, usando 10.0 ns.")
+
+        # Por defecto para Ceftaroline usamos 4.5e-6 por estabilidad física
+        compressibility = 4.5e-6 if complejo == "PBP2a_Ceftaroline" else 4.5e-5
+
+        ejecutar_simulacion_complejo(
+            complejo=complejo,
+            tiempo_ns=tiempo_ns,
+            compressibility=compressibility,
+            maxwarn=1,
+            ntomp=8,
+            gpu_id=0,
+            use_gpu=True,
+            update_mode="cpu"
+        )
 
 
 if __name__ == "__main__":
