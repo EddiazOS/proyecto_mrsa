@@ -27,22 +27,27 @@ update_mode = cpu
 # =====================================================================
 # 2. LISTA DE SIMULACIONES A EJECUTAR
 # =====================================================================
-# Formato: Nombre_Complejo | Tiempo_ns | Compresibilidad_NPT | Maxwarn
+# El archivo soporta dos formatos de especificación de complejos:
 #
-# Complejos soportados:
-#   - MurG_Afzelin
-#   - MurG_Quercetin
-#   - PBP2a_Afzelin
-#   - PBP2a_Ceftaroline
+# Formato A: Para complejos predefinidos (MurG_Afzelin, MurG_Quercetin, PBP2a_Afzelin, PBP2a_Ceftaroline)
+#   Nombre_Complejo | Tiempo_ns | Compresibilidad_NPT | Maxwarn
 #
-# Compresibilidad NPT recomendada:
-#   - Estándar: 4.5e-5
-#   - Sistemas grandes/difíciles (ej. Ceftaroline): 4.5e-6 (evita oscilaciones críticas)
-# Maxwarn: Número máximo de advertencias permitidas en grompp (por defecto: 1)
+# Formato B: Para CUALQUIER complejo personalizado
+#   Nombre_Complejo | Tiempo_ns | Compresibilidad_NPT | Maxwarn | Ruta_PDB | Ruta_SDF | Carga_Ligando | Resname_Ligando
+#
+# Parámetros adicionales en Formato B:
+#   - Ruta_PDB: Ubicación del PDB del complejo ensamblado.
+#   - Ruta_SDF: Ubicación del SDF del ligando tridimensional (cargas / geometría).
+#   - Carga_Ligando: Carga neta del ligando (ej. 0, -1, 1).
+#   - Resname_Ligando: Nombre de residuo del ligando de 3 letras en el PDB (ej. AFZ, CEF, LIG).
 # ---------------------------------------------------------------------
-# Descomenta las líneas que deseas correr:
+# Descomenta y edita las líneas que deseas correr:
 
+# -- Ejemplos Formato A:
 # MurG_Afzelin      | 20 | 4.5e-5 | 1
-# MurG_Quercetin  | 20 | 4.5e-5 | 1
-# PBP2a_Afzelin   | 20 | 4.5e-5 | 1
-PBP2a_Ceftaroline | 20 | 4.5e-6 | 1
+# MurG_Quercetin    | 20 | 4.5e-5 | 1
+# PBP2a_Afzelin     | 20 | 4.5e-5 | 1
+PBP2a_Ceftaroline   | 20 | 4.5e-6 | 1
+
+# -- Ejemplo Formato B (Complejo Personalizado):
+# Mi_Nuevo_Complejo | 20 | 4.5e-5 | 1 | data/complexes/custom.pdb | data/ligands/custom.sdf | 0 | LIG

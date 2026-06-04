@@ -329,7 +329,7 @@ def parsear_config_txt(config_path):
     """
     Lee un archivo de configuración de texto y devuelve:
       - global_params: dict con variables de hardware (ntomp, gpu_id, use_gpu, update_mode)
-      - simulation_list: list de dicts con la configuración de cada simulación
+      - simulation_list: list de dicts con la configuración de cada simulación (soportando rutas personalizadas)
     """
     global_params = {
         "ntomp": 8,
@@ -365,7 +365,7 @@ def parsear_config_txt(config_path):
                 elif key == "update_mode":
                     global_params["update_mode"] = val.lower()
 
-            # Detectar lista de complejos (complejo | tiempo_ns | compresibilidad | maxwarn)
+            # Detectar lista de complejos (complejo | tiempo_ns | compresibilidad | maxwarn | [complex_pdb | ligand_sdf | charge | resname])
             elif "|" in line:
                 parts = line.split("|")
                 complejo = parts[0].strip()
@@ -380,11 +380,21 @@ def parsear_config_txt(config_path):
                 if len(parts) >= 4:
                     maxwarn = int(parts[3].strip())
 
+                custom_info = None
+                if len(parts) >= 8:
+                    custom_info = {
+                        "complex_pdb": parts[4].strip(),
+                        "ligand_sdf": parts[5].strip(),
+                        "charge": int(parts[6].strip()),
+                        "resname": parts[7].strip()
+                    }
+
                 simulation_list.append({
                     "complejo": complejo,
                     "tiempo_ns": tiempo_ns,
                     "compressibility": compressibility,
-                    "maxwarn": maxwarn
+                    "maxwarn": maxwarn,
+                    "custom_info": custom_info
                 })
 
     return global_params, simulation_list
@@ -394,7 +404,7 @@ def parsear_config_txt(config_path):
 # Función Orquestadora para un Complejo Individual
 # =====================================================================
 
-def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, maxwarn=1, ntomp=8, gpu_id=0, use_gpu=True, update_mode="cpu"):
+def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, maxwarn=1, ntomp=8, gpu_id=0, use_gpu=True, update_mode="cpu", custom_info=None):
     sistemas = {
         "MurG_Afzelin": {
             "complex_pdb": "data/complexes/complex_MurG_Afzelin.pdb",
@@ -421,6 +431,10 @@ def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, ma
             "resname": "CEF"
         }
     }
+
+    # Registrar dinámicamente complejos no predefinidos si se provee la información
+    if custom_info:
+        sistemas[complejo] = custom_info
 
     if complejo not in sistemas:
         print(f"\n[ERROR] Complejo '{complejo}' no soportado.")
@@ -621,7 +635,8 @@ def main():
                 ntomp=global_params["ntomp"],
                 gpu_id=global_params["gpu_id"],
                 use_gpu=global_params["use_gpu"],
-                update_mode=global_params["update_mode"]
+                update_mode=global_params["update_mode"],
+                custom_info=sim.get("custom_info")
             )
             if exito:
                 exitos += 1
