@@ -31,8 +31,35 @@ import subprocess
 # =====================================================================
 # Flags GPU para gmx mdrun
 # =====================================================================
-GPU_FLAGS_FULL  = "-ntmpi 1 -ntomp 8 -nb gpu -pme gpu -bonded gpu -update cpu -gpu_id 0"
-GPU_FLAGS_MINIM = "-ntmpi 1 -ntomp 8 -nb gpu -gpu_id 0"
+def seleccionar_flags_gromacs():
+    """
+    Selecciona dinámicamente los flags de gmx mdrun según el hardware local
+    y la compilación de GROMACS.
+    """
+    flags_full  = "-ntmpi 1 -ntomp 8 -nb gpu -pme gpu -bonded gpu -update cpu -gpu_id 0"
+    flags_minim = "-ntmpi 1 -ntomp 8 -nb gpu -gpu_id 0"
+
+    # 1. Verificar si nvidia-smi está disponible
+    if not shutil.which("nvidia-smi"):
+        print("[INFO] No se detectó GPU NVIDIA (nvidia-smi no disponible). Ejecutando en CPU.")
+        return "", ""
+
+    # 2. Verificar si GROMACS tiene soporte GPU compilado
+    try:
+        res = subprocess.run("gmx -version", shell=True, capture_output=True, text=True)
+        if res.returncode == 0:
+            out = res.stdout.lower()
+            if "gpu support" in out:
+                for line in out.split("\n"):
+                    if "gpu support" in line and ("none" in line or "disabled" in line or "no" in line):
+                        print("[INFO] GROMACS no tiene soporte GPU activo en su compilación. Ejecutando en CPU.")
+                        return "", ""
+    except Exception:
+        pass
+
+    return flags_full, flags_minim
+
+GPU_FLAGS_FULL, GPU_FLAGS_MINIM = seleccionar_flags_gromacs()
 
 
 # =====================================================================
@@ -374,6 +401,8 @@ def main():
     os.chdir(run_dir)
 
     for fn, content in [("minim.mdp", MINIM_MDP), ("nvt.mdp", NVT_MDP), ("npt.mdp", NPT_MDP)]:
+        if fn == "npt.mdp" and complejo == "PBP2a_Ceftaroline":
+            content = content.replace("compressibility = 4.5e-5", "compressibility = 4.5e-6")
         with open(fn, "w") as f:
             f.write(content)
     with open("md.mdp", "w") as f:
