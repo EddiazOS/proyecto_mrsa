@@ -1,13 +1,15 @@
 # =====================================================================
 # ARCHIVO DE CONFIGURACIÓN DE DINÁMICA MOLECULAR (GROMACS)
 # =====================================================================
-# Este archivo sirve para especificar qué complejos simular y con qué
-# configuraciones físicas y de hardware de forma secuencial.
+# Este archivo permite especificar la lista de complejos que se simularán
+# de forma secuencial, junto con sus parámetros físicos y globales.
 #
-# Reglas de formato:
-#   1. Las líneas que comienzan con '#' son comentarios y son omitidas.
-#   2. Las asignaciones 'parametro = valor' definen la configuración global.
-#   3. La lista de complejos se lee mediante campos separados por '|'.
+# El script buscará automáticamente los archivos correspondientes en:
+#   - PDB del Complejo: data/complexes/complex_{Nombre_Complejo}.pdb
+#                       o data/complexes/{Nombre_Complejo}.pdb
+#   - SDF del Ligando : data/ligands/{Ligando}_3D.sdf
+#                       o data/ligands/{Ligando}.sdf
+#                       (El ligando se extrae tras el carácter '_')
 #
 # =====================================================================
 # 1. PARÁMETROS GLOBALES DE HARDWARE
@@ -15,39 +17,31 @@
 # ntomp: Número de hilos OpenMP de CPU por tarea de mdrun (dejar en 8 para RTX 4080 Super)
 ntomp = 8
 
-# gpu_id: Identificador de la GPU a utilizar (usar 0 por defecto)
+# gpu_id: Identificador de la GPU NVIDIA a utilizar (usar 0 por defecto)
 gpu_id = 0
 
 # use_gpu: True para usar aceleración por GPU (CUDA), False para CPU
 use_gpu = True
 
-# update_mode: 'cpu' o 'gpu' (se recomienda 'cpu' por estabilidad termodinámica en NPT)
+# update_mode: 'cpu' o 'gpu' (se recomienda 'cpu' por estabilidad en equilibración NPT)
 update_mode = cpu
 
 # =====================================================================
 # 2. LISTA DE SIMULACIONES A EJECUTAR
 # =====================================================================
-# El archivo soporta dos formatos de especificación de complejos:
-#
-# Formato A: Para complejos predefinidos (MurG_Afzelin, MurG_Quercetin, PBP2a_Afzelin, PBP2a_Ceftaroline)
+# Formato:
 #   Nombre_Complejo | Tiempo_ns | Compresibilidad_NPT | Maxwarn
 #
-# Formato B: Para CUALQUIER complejo personalizado
-#   Nombre_Complejo | Tiempo_ns | Compresibilidad_NPT | Maxwarn | Ruta_PDB | Ruta_SDF | Carga_Ligando | Resname_Ligando
-#
-# Parámetros adicionales en Formato B:
-#   - Ruta_PDB: Ubicación del PDB del complejo ensamblado.
-#   - Ruta_SDF: Ubicación del SDF del ligando tridimensional (cargas / geometría).
-#   - Carga_Ligando: Carga neta del ligando (ej. 0, -1, 1).
-#   - Resname_Ligando: Nombre de residuo del ligando de 3 letras en el PDB (ej. AFZ, CEF, LIG).
+# Parámetros:
+#   - Nombre_Complejo: Identificador del complejo (ej. MurG_Afzelin, PBP2a_Ceftaroline).
+#   - Tiempo_ns: Duración de la simulación de producción en nanosegundos (ej. 20 o 100).
+#   - Compresibilidad_NPT: Compresibilidad isotrópica en bar^-1 para NPT (por defecto 4.5e-5).
+#                          Nota: Para PBP2a_Ceftaroline se recomienda usar 4.5e-6 por estabilidad.
+#   - Maxwarn: Número máximo de warnings permitidos en grompp (por defecto 1).
 # ---------------------------------------------------------------------
-# Descomenta y edita las líneas que deseas correr:
 
-# -- Ejemplos Formato A:
-# MurG_Afzelin      | 20 | 4.5e-5 | 1
-# MurG_Quercetin    | 20 | 4.5e-5 | 1
-# PBP2a_Afzelin     | 20 | 4.5e-5 | 1
-PBP2a_Ceftaroline   | 20 | 4.5e-6 | 1
-
-# -- Ejemplo Formato B (Complejo Personalizado):
-# Mi_Nuevo_Complejo | 20 | 4.5e-5 | 1 | data/complexes/custom.pdb | data/ligands/custom.sdf | 0 | LIG
+# Complejos a simular (Descomenta o agrega los que desees correr):
+# MurG_Afzelin        | 20.0 | 4.5e-5 | 1
+# MurG_Quercetin      | 20.0 | 4.5e-5 | 1
+# PBP2a_Afzelin       | 20.0 | 4.5e-5 | 1
+PBP2a_Ceftaroline     | 20.0 | 4.5e-6 | 1

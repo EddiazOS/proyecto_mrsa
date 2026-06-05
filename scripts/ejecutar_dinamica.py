@@ -329,7 +329,7 @@ def parsear_config_txt(config_path):
     """
     Lee un archivo de configuración de texto y devuelve:
       - global_params: dict con variables de hardware (ntomp, gpu_id, use_gpu, update_mode)
-      - simulation_list: list de dicts con la configuración de cada simulación (soportando rutas personalizadas)
+      - simulation_list: list de dicts con la configuración de cada simulación (Nombre | Tiempo | Compresibilidad | Maxwarn)
     """
     global_params = {
         "ntomp": 8,
@@ -365,7 +365,7 @@ def parsear_config_txt(config_path):
                 elif key == "update_mode":
                     global_params["update_mode"] = val.lower()
 
-            # Detectar lista de complejos (complejo | tiempo_ns | compresibilidad | maxwarn | [complex_pdb | ligand_sdf | charge | resname])
+            # Detectar lista de complejos (complejo | tiempo_ns | compresibilidad | maxwarn)
             elif "|" in line:
                 parts = line.split("|")
                 complejo = parts[0].strip()
@@ -380,21 +380,11 @@ def parsear_config_txt(config_path):
                 if len(parts) >= 4:
                     maxwarn = int(parts[3].strip())
 
-                custom_info = None
-                if len(parts) >= 8:
-                    custom_info = {
-                        "complex_pdb": parts[4].strip(),
-                        "ligand_sdf": parts[5].strip(),
-                        "charge": int(parts[6].strip()),
-                        "resname": parts[7].strip()
-                    }
-
                 simulation_list.append({
                     "complejo": complejo,
                     "tiempo_ns": tiempo_ns,
                     "compressibility": compressibility,
-                    "maxwarn": maxwarn,
-                    "custom_info": custom_info
+                    "maxwarn": maxwarn
                 })
 
     return global_params, simulation_list
@@ -404,44 +394,47 @@ def parsear_config_txt(config_path):
 # Función Orquestadora para un Complejo Individual
 # =====================================================================
 
-def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, maxwarn=1, ntomp=8, gpu_id=0, use_gpu=True, update_mode="cpu", custom_info=None):
-    sistemas = {
-        "MurG_Afzelin": {
-            "complex_pdb": "data/complexes/complex_MurG_Afzelin.pdb",
-            "ligand_sdf":  "data/ligands/Afzelin_3D.sdf",
-            "charge": 0,
-            "resname": "AFZ"
-        },
-        "MurG_Quercetin": {
-            "complex_pdb": "data/complexes/complex_MurG_Quercetin.pdb",
-            "ligand_sdf":  "data/ligands/Quercetin_3D.sdf",
-            "charge": 0,
-            "resname": "QUE"
-        },
-        "PBP2a_Afzelin": {
-            "complex_pdb": "data/complexes/complex_PBP2a_Afzelin.pdb",
-            "ligand_sdf":  "data/ligands/Afzelin_3D.sdf",
-            "charge": 0,
-            "resname": "AFZ"
-        },
-        "PBP2a_Ceftaroline": {
-            "complex_pdb": "data/complexes/complex_PBP2a_Ceftaroline.pdb",
-            "ligand_sdf":  "data/ligands/Ceftaroline_3D.sdf",
-            "charge": 0,
-            "resname": "CEF"
-        }
-    }
+def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, maxwarn=1, ntomp=8, gpu_id=0, use_gpu=True, update_mode="cpu"):
+    # 1. Definir la ruta del complejo PDB de forma restrictiva en data/complexes
+    pdb_path = os.path.join("data", "complexes", f"complex_{complejo}.pdb")
+    if not os.path.exists(pdb_path):
+        pdb_path = os.path.join("data", "complexes", f"{complejo}.pdb")
 
-    # Registrar dinámicamente complejos no predefinidos si se provee la información
-    if custom_info:
-        sistemas[complejo] = custom_info
-
-    if complejo not in sistemas:
-        print(f"\n[ERROR] Complejo '{complejo}' no soportado.")
-        print(f"Válidos: {', '.join(sistemas.keys())}")
+    if not os.path.exists(pdb_path):
+        print(f"\n[ERROR] No se encontró el archivo PDB del complejo para '{complejo}'.")
+        print("        Se buscaron sin éxito en:")
+        print(f"        - data/complexes/complex_{complejo}.pdb")
+        print(f"        - data/complexes/{complejo}.pdb")
         return False
 
-    sys_info = sistemas[complejo]
+    # 2. Determinar el nombre del ligando
+    # Si contiene '_', asumimos formato Receptor_Ligando y tomamos la parte del ligando (ej. MurG_Afzelin -> Afzelin)
+    if "_" in complejo:
+        lig_name = complejo.split("_")[-1]
+    else:
+        lig_name = complejo
+
+    # Buscar el archivo SDF del ligando en data/ligands/
+    sdf_path = os.path.join("data", "ligands", f"{lig_name}_3D.sdf")
+    if not os.path.exists(sdf_path):
+        sdf_path = os.path.join("data", "ligands", f"{lig_name}.sdf")
+    if not os.path.exists(sdf_path):
+        sdf_path = os.path.join("data", "ligands", f"{complejo}_3D.sdf")
+        if not os.path.exists(sdf_path):
+            sdf_path = os.path.join("data", "ligands", f"{complejo}.sdf")
+
+    if not os.path.exists(sdf_path):
+        print(f"\n[ERROR] No se encontró el archivo SDF del ligando para '{complejo}' (ligando deducido: '{lig_name}').")
+        print("        Se buscaron sin éxito en:")
+        print(f"        - data/ligands/{lig_name}_3D.sdf")
+        print(f"        - data/ligands/{lig_name}.sdf")
+        print(f"        - data/ligands/{complejo}_3D.sdf")
+        print(f"        - data/ligands/{complejo}.sdf")
+        return False
+
+    # 3. Determinar el nombre del residuo (3 caracteres, en mayúsculas) y la carga neta (0 por defecto)
+    resname = lig_name[:3].upper()
+    charge = 0
 
     if not shutil.which("gmx"):
         print("\n[ERROR] GROMACS ('gmx') no encontrado en PATH.")
@@ -449,11 +442,6 @@ def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, ma
     if not shutil.which("acpype"):
         print("\n[ERROR] ACPYPE no encontrado en PATH.")
         sys.exit(1)
-
-    for key, path in [("complex_pdb", sys_info["complex_pdb"]), ("ligand_sdf", sys_info["ligand_sdf"])]:
-        if not os.path.exists(path):
-            print(f"\n[ERROR] Archivo no encontrado: {path}")
-            sys.exit(1)
 
     # Seleccionar flags de GPU dinámicamente según especificaciones detectadas y configuradas
     gpu_flags_full, gpu_flags_minim = seleccionar_flags_gromacs(
@@ -465,8 +453,10 @@ def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, ma
     print("\n" + "=" * 65)
     print(f"  INICIANDO DINÁMICA MOLECULAR PARA: {complejo}")
     print(f"  Tiempo   : {tiempo_ns} ns ({nsteps_prod} pasos)")
-    print(f"  Complejo : {sys_info['complex_pdb']}")
-    print(f"  Ligando  : {sys_info['ligand_sdf']}")
+    print(f"  Complejo : {pdb_path}")
+    print(f"  Ligando  : {sdf_path}")
+    print(f"  Resname  : {resname}")
+    print(f"  Carga    : {charge}")
     print(f"  Hardware : GPU={use_gpu} | Hilos CPU={ntomp} | ID GPU={gpu_id} | Update={update_mode}")
     print("=" * 65)
 
@@ -474,9 +464,8 @@ def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, ma
     os.makedirs(run_dir, exist_ok=True)
     print(f"\n[*] Carpeta de trabajo: {run_dir}")
 
-    resname = sys_info["resname"]
-    shutil.copy(sys_info["complex_pdb"], os.path.join(run_dir, "complex_input.pdb"))
-    shutil.copy(sys_info["ligand_sdf"],  os.path.join(run_dir, f"{resname}.sdf"))
+    shutil.copy(pdb_path, os.path.join(run_dir, "complex_input.pdb"))
+    shutil.copy(sdf_path,  os.path.join(run_dir, f"{resname}.sdf"))
     
     # Guardar directorio original para regresar después de la simulación
     orig_dir = os.getcwd()
@@ -496,7 +485,7 @@ def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, ma
     # =====================================================================
     print("\n--- PASO A: Parametrizando ligando con ACPYPE (GAFF2/AM1-BCC) ---")
     res_acpype = subprocess.run(
-        f"acpype -i {resname}.sdf -c bcc -n {sys_info['charge']} -f",
+        f"acpype -i {resname}.sdf -c bcc -n {charge} -f",
         shell=True, capture_output=True, text=True
     )
     ligand_folder = f"{resname}.acpype"
@@ -635,8 +624,7 @@ def main():
                 ntomp=global_params["ntomp"],
                 gpu_id=global_params["gpu_id"],
                 use_gpu=global_params["use_gpu"],
-                update_mode=global_params["update_mode"],
-                custom_info=sim.get("custom_info")
+                update_mode=global_params["update_mode"]
             )
             if exito:
                 exitos += 1
