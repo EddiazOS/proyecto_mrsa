@@ -444,9 +444,17 @@ def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, ma
 
     gmx_path = shutil.which("gmx")
     if not gmx_path:
-        print("\n[ERROR] GROMACS ('gmx') no encontrado en el PATH.")
-        print("        Instálalo en el entorno con: conda install -c conda-forge gromacs -y")
-        sys.exit(1)
+        # Intentar detectar GROMACS en la ruta estándar de compilación local
+        default_local_gmx = "/usr/local/gromacs/bin/gmx"
+        if os.path.exists(default_local_gmx):
+            gmx_path = default_local_gmx
+            # Agregar la ruta al PATH del entorno actual para que los subprocesos de python lo hereden
+            os.environ["PATH"] = "/usr/local/gromacs/bin" + os.pathsep + os.environ.get("PATH", "")
+            print(f"[INFO] GROMACS no estaba en el PATH de la terminal, pero se autodetectó en: {gmx_path}")
+        else:
+            print("\n[ERROR] GROMACS ('gmx') no encontrado en el PATH.")
+            print("        Instálalo en el entorno con: conda install -c conda-forge gromacs -y")
+            sys.exit(1)
 
     acpype_path = shutil.which("acpype")
     if not acpype_path:
