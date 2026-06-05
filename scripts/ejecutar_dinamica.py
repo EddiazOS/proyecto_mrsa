@@ -460,16 +460,14 @@ def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, ma
     real_prefix = os.path.realpath(conda_prefix)
 
     if not real_gmx.startswith(real_prefix):
-        print(f"\n[ERROR] El comando 'gmx' se ejecuta desde '{gmx_path}',")
-        print(f"        pero NO está dentro del entorno de Conda activo ('{conda_prefix}').")
-        print("        Para evitar conflictos de versión, instala GROMACS en tu entorno con:")
-        print("        conda install -c conda-forge gromacs -y")
-        sys.exit(1)
+        print(f"\n[INFO] Usando GROMACS del sistema en '{gmx_path}' (fuera del entorno de Conda).")
+        print("       Esto es óptimo si tu GROMACS de sistema tiene soporte GPU (CUDA) activo.")
+    else:
+        print(f"\n[INFO] Usando GROMACS del entorno Conda en '{gmx_path}'.")
 
     if not real_acpype.startswith(real_prefix):
-        print(f"\n[ERROR] El comando 'acpype' se ejecuta desde '{acpype_path}',")
-        print(f"        pero NO está dentro del entorno de Conda activo ('{conda_prefix}').")
-        sys.exit(1)
+        print(f"\n[WARNING] El comando 'acpype' se ejecuta desde '{acpype_path}',")
+        print(f"          fuera del entorno de Conda activo ('{conda_prefix}'). Procediendo de todos modos...")
 
     # Seleccionar flags de GPU dinámicamente según especificaciones detectadas y configuradas
     gpu_flags_full, gpu_flags_minim = seleccionar_flags_gromacs(
