@@ -436,11 +436,39 @@ def ejecutar_simulacion_complejo(complejo, tiempo_ns, compressibility=4.5e-5, ma
     resname = lig_name[:3].upper()
     charge = 0
 
-    if not shutil.which("gmx"):
-        print("\n[ERROR] GROMACS ('gmx') no encontrado en PATH.")
+    conda_prefix = os.environ.get("CONDA_PREFIX")
+    if not conda_prefix:
+        print("\n[ERROR] No hay ningún entorno de Conda activo.")
+        print("        Por favor, activa tu entorno con: conda activate md_env")
         sys.exit(1)
-    if not shutil.which("acpype"):
-        print("\n[ERROR] ACPYPE no encontrado en PATH.")
+
+    gmx_path = shutil.which("gmx")
+    if not gmx_path:
+        print("\n[ERROR] GROMACS ('gmx') no encontrado en el PATH.")
+        print("        Instálalo en el entorno con: conda install -c conda-forge gromacs -y")
+        sys.exit(1)
+
+    acpype_path = shutil.which("acpype")
+    if not acpype_path:
+        print("\n[ERROR] ACPYPE ('acpype') no encontrado en el PATH.")
+        print("        Asegúrate de que el entorno conda esté activo y contenga acpype.")
+        sys.exit(1)
+
+    # Verificar que pertenezcan al entorno Conda activo
+    real_gmx = os.path.realpath(gmx_path)
+    real_acpype = os.path.realpath(acpype_path)
+    real_prefix = os.path.realpath(conda_prefix)
+
+    if not real_gmx.startswith(real_prefix):
+        print(f"\n[ERROR] El comando 'gmx' se ejecuta desde '{gmx_path}',")
+        print(f"        pero NO está dentro del entorno de Conda activo ('{conda_prefix}').")
+        print("        Para evitar conflictos de versión, instala GROMACS en tu entorno con:")
+        print("        conda install -c conda-forge gromacs -y")
+        sys.exit(1)
+
+    if not real_acpype.startswith(real_prefix):
+        print(f"\n[ERROR] El comando 'acpype' se ejecuta desde '{acpype_path}',")
+        print(f"        pero NO está dentro del entorno de Conda activo ('{conda_prefix}').")
         sys.exit(1)
 
     # Seleccionar flags de GPU dinámicamente según especificaciones detectadas y configuradas
